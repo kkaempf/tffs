@@ -1,0 +1,43 @@
+TFFS README -- last edited 2005-11-30
+
+This is tffs, a read-only driver for the T*PFIELD file system, based on FUSE,
+the file system in userspace. With tffs you can mount a hard disk from a
+T*PFIELD digital satellite receiver to a directory in your file system tree.
+Any program can access the files on your T*PFIELD disk like any other ordinary
+file. tffs does not support any write operations. Changing files is 
+impossible, as is delete or even renaming files. tffs has so far only been
+tested with the T*PFIELD PVR4000. It may or may not work with other models.
+Since I have no access to other models, I will not be able to add support for
+those. However, if you have some other T*PFIELD device and you can provide
+me patch for supporting it, I am willing to include it in tffs.
+
+In order to use tffs, your kernel must include FUSE support. FUSE has been
+part of the official Linux kernel since version 2.6.14. For some older
+versions, FUSE can be acquired separately to be compiled as a kernel module.
+
+tffs only consists of one program: mount.tffs. It can only be invoked as
+super user. For the exact synopsis of the mount.tffs command, consult the
+man page. If you like to make the T*PFIELD file system accessible to other
+users than root, you must provide the "allow_other" mount option. A typical
+call to mount.tffs looks like this:
+
+mount.tffs /dev/sdb /mnt -o allow_other
+
+In the example, the T*PFIELD hard disk corresponds to the device file
+/dev/sdb. In my case it is connected to the USB bus (via an IDE-USB-adaptor).
+It is mounted to the /mnt directory, and since the allow_other mount option
+is specified, users other than root can access the mounted T*PFIELD disk.
+Unmount the file system with:
+
+umount /mnt
+
+or by killing the mount.tffs process. For your convenience, you may add a
+line to /etc/fstab to ease mounting and to make it possible for non-privileged
+users.
+
+If mount.tffs is installed in the /sbin directory, it can be called through the
+regular mount program (/bin/mount), by specifying "-t tffs":
+
+mount /dev/sdb /mnt -t tffs -o allow_other
+
+This way, it is easy to configure an automounter for mounting a T*PFIELD disk.

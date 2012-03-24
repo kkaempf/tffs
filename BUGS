@@ -1,0 +1,4 @@
+TFFS BUGS -- last edited 2005-11-30
+
+* It seems that tffs file system cannot be NFS exported. I don't know for
+  what reason.

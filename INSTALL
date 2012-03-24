@@ -1,0 +1,11 @@
+TFFS INSTALL -- last edited 2005-11-30
+
+In order to compile tffs, you need to have the fuse library installed (as well
+as the corresponding header files, which are usually available through a
+development package, like libfuse-dev in case of Debian). You also need to
+have the SCons build tool installed. Then you can just call "make" or "scons"
+to build the mount.tffs binary.
+
+If you don't have SCons installed, you can call your C++ compiler directly:
+
+g++ -Wall -O3 src/main.cpp src/tfdisk.cpp -o bin/mount.tffs -lfuse

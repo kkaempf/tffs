@@ -1,0 +1,69 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.TH TFFS 1 "November 30, 2005"
+.SH NAME
+mount.tffs \- mount a T*PFIELD file system
+.SH SYNOPSIS
+.B mount.tffs
+[
+.B \-dfsh
+]
+[
+.B \-o
+.I mount-options
+]
+.I device
+.I dir
+.SH DESCRIPTION
+.B
+mount.tffs
+attaches the T*PFIELD file system on the device
+.I device
+to the directory
+.IR "dir" "."
+The T*PFIELD file system is always mounted read-only, since tffs does not
+support any write operations. tffs is based on FUSE, the file system in userspace.
+.B mount.tffs
+supports all the usual FUSE mount options, of which only the relevant are
+discussed in this man page.
+.SH OPTIONS
+.TP
+.B "\-d"
+enable debug output
+.TP
+.B "\-f"
+foreground operation (also implies
+.BR "\-d" )
+.TP
+.B "\-s"
+disable multithreaded operation
+.TP
+.B "\-h"
+print help
+.TP
+.BI "\-o " "mount-options"
+specify mount options
+.SH MOUNT OPTIONS
+.TP
+.B allow_other
+other users than the one who invokes
+.B mount.tffs
+may access the file system. As
+.B mount.tffs
+can only be called by the super user, you most probably want to set this option.
+.TP
+.BI "umask=" "M"
+set file permissions to
+.I M
+.TP
+.BI "uid=" "uid"
+set file ownership to user
+.I uid
+.TP
+.BI "gid=" "gid"
+set file ownership to group
+.I gid
+.SH AUTHOR
+tffs was written by Sven Over <svenover@svenover.de>. All information on the T*PFIELD 
+file system, and also some parts of the code are taken from the original
+"Console driver program for Topfield TF4000PVR disk processing",
+Copyright (c) 2002 Petr Novak <topfield@centrum.cz>.

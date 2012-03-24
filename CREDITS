@@ -1,0 +1,13 @@
+TFFS CREDITS -- last edited 2005-11-30
+
+tffs is written by Sven Over <svenover@svenover.de>, Copyright (c) 2005. It is
+licensed under the terms of the GPL. Read COPYING for additional information.
+ 
+tffs is based on the original "Console driver program for Topfield TF4000PVR
+disk processing", Copyright (c) 2002 Petr Novak <topfield@centrum.cz>, and
+licensed under the terms of the GPL.
+
+Some parts of the code are taken from the FUSE example programs, as included
+in "FUSE: Filesystem in Userspace",
+Copyright (c) 2001-2005 Miklos Szeredi <miklos@szeredi.hu>, and licensed
+under the terms of the GPL.
