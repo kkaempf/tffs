@@ -1,0 +1,5 @@
+*~
+*.o
+*-stamp
+*.log
+bin
