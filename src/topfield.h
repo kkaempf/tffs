@@ -31,21 +31,22 @@
 
 #include <stdint.h>
 
-#define	TF_MAXFATSIZE	(256*512)
+static const int TF_MAXFATSIZE=256*512;
 
 /*** T*pfield data types ***/
 
-typedef struct {
+struct tf_superblock_t {
 	uint32_t	magic;
-	char	signature[28]; /* "TOPFIELD PVR HDD" */
-	uint16_t	version;
-	uint16_t	cluster_size;
+	char	signature[28]; /* "TOPFIELD PVR HDD" ==> TF4000,  
+	                          "TOPFIELD TF5000PVR HDD" ==> TF5000 */
+	uint16_t	version; /* 0x0100 = TF4000, 0x0101 = TF5000 */
+	uint16_t	cluster_size; /* 2048: TF4000, 2068: TF5000 */
 	uint32_t	x;
 	uint32_t	first_empty;
 	uint32_t	empty_in_root;
 	uint32_t	fat_crc32;
 	uint8_t	filler[512-52];
-} tf_superblock_t __attribute__((packed));
+} __attribute__((packed));
 
 typedef	char	tsdbname[512];
 

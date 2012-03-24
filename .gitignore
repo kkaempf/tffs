@@ -3,3 +3,5 @@
 *-stamp
 *.log
 bin
+debian/tffs
+.sconsign.dblite
