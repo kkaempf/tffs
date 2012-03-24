@@ -1,11 +1,18 @@
+2011-08-01  Klaus Kaempf <kkaempf@gmail.com>
+
+        * Adapt to newer on-disk structure for TF5400PVR
+        * v0.9.2
+
 2008-01-06  Sven Over  <svenover@svenover.de>
 
 	* Fixed st_blocks field in stat structure. 'du' now reports correct
 	  file sizes.
 	* Various changes, fixes and clean-ups.
 	* Name mangling by Ralph Glasstetter.
+        * v0.9.1
 
 2005-11-30  Sven Over  <svenover@svenover.de>
 
 	* First public release.
+        * v0.9.0
 
