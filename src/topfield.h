@@ -32,6 +32,9 @@
 #include <stdint.h>
 
 static const int TF_MAXFATSIZE=256*512;
+typedef uint32_t cluster_t;
+#define FAT_CLUSTER -1
+#define ROOT_CLUSTER 0
 
 /*** T*pfield data types ***/
 
@@ -50,23 +53,24 @@ struct tf_superblock_t {
 
 typedef	char	tsdbname[512];
 
-struct directory_entry_t {
+struct tf_entry_t {
 	uint8_t	type;	/* 0 */
 	uint8_t	data[7]; /* 1 */
-	uint32_t	start_block; /* 8 */
-	uint32_t	count_of_blocks; /* C */
-	uint32_t	empty_in_last_block; /* 10 */
+	cluster_t	start_cluster; /* 8 */
+	uint32_t	count_of_clusters; /* C */
+	uint32_t	empty_in_last_cluster; /* 10 */
 	char		name[108]; /* 14 */
 } __attribute__((packed)); /* sizeof = 0x80 = 128 */
 
-
+#if 0
 struct tf_dir_t {
 	uint8_t	type;
 	uint8_t	data[7];
-	uint32_t	start_block;
-	uint32_t	count_of_blocks;
-	uint32_t	empty_in_last_block;
+	cluster_t	start_cluster;
+	uint32_t	count_of_clusters;
+	uint32_t	empty_in_last_cluster;
 	char		name[512];
 }  __attribute__((packed));
+#endif
 
 #endif

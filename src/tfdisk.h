@@ -34,31 +34,33 @@
 #include <string>
 #include "topfield.h"
 
-#include <tr1/memory>
+//#include <tr1/memory>
 
-typedef std::tr1::shared_ptr<directory_entry_t> directory_entry_ptr;
-typedef std::tr1::shared_ptr<tf_dir_t> tf_dir_ptr;
+typedef tf_entry_t* tf_entry_ptr;
+
+typedef uint32_t inode_t;
+#define INODE_ROOT 1
 
 struct tffilesegment
-  {
+{
   int64_t offset;
   int64_t size;
   int64_t pos;
   tffilesegment() : offset(0), size(0), pos(0) {}
   tffilesegment(int64_t _offset, uint32_t _size, int64_t _pos) : offset(_offset),size(_size),pos(_pos) {}
-  };
+};
 
+struct tfinode;
+typedef struct tfinode * tfinode_ptr;
 struct tfinode
-  {
-  tf_dir_t d;
-  struct stat s;
+{
+  tf_entry_t entry;
+  struct stat st;
   typedef std::vector<tffilesegment> seg_t;
   seg_t seg;
-  
-//   tfinode() {}
-//   ~tfinode() {}
-  };
-typedef std::tr1::shared_ptr<tfinode> tfinode_ptr;
+  inode_t first; // first dir entry, if dir, 0 else
+  int32_t count; // # of dir entries, if dir, -1 else
+};
   
 typedef enum {
   TF_UNKNOWN = 0,
@@ -67,56 +69,79 @@ typedef enum {
 } tf_type_t;
 
 class tfdisk
-  {
+{
   private:
-    tf_type_t tf_type;
+    tf_type_t _type;
     /// device file name
-    std::string devfn;
+    std::string _devfn;
     /// device file descriptor
-    int fd;
+    int _fd;
     /// device size
-    off_t size;
+    off_t _size;
     /// number of lba sectors
-    int64_t lba_sectors;
+    int64_t _lba_sectors;
     /// size of cluster
-    uint32_t cluster_size;
+    uint32_t _cluster_size;
     /// number of FAT items
-    uint32_t fatitems;
+    uint32_t _fatitems;
     /// cluster buffer
-    uint8_t *buffer;
+    uint8_t *_buffer;
     /// FAT
     typedef std::vector<uint32_t> fat_t;
-    fat_t fat;
+    fat_t _fat;
    
-    std::vector<tfinode_ptr> entry;
+    // all inodes, indexed by inode #, starting from 1
+    std::vector<tfinode_ptr> _inodes;
 
-    bool readcluster(int n);
-    bool parse_dir(uint32_t cluster, uint8_t mask, uint8_t value);
-    bool read_fat();  
-    void gen_filesegments(tfinode_ptr &i);
-    
+    // read_* functions to real I/O
+
+    // read fat table
+    int read_fat();  
+
+    // read cluster to buffer
+    int read_cluster(cluster_t n);
+   
+    // collect inodes with same parent
+    // inodes within a directory are consecutive, 
+    int collect_inodes(tfinode_ptr parent, inode_t *first, int *count);
+   
+    // generate inodes from directory, return error
+    int gen_inodes(tfinode_ptr inode);
+   
+    // generate file segment data, return error
+    int gen_filesegments(tfinode_ptr inode);
+
   public:
-    tfdisk(const char *device) : devfn(device), fd(-1),size(-1),buffer(NULL),fat(NULL) {}
+    tfdisk(const char *device) : _devfn(device), _fd(-1), _size(-1), _buffer(NULL), _fat(NULL) {}
     ~tfdisk();
     
-    bool open();
+    int open(); // returning errno
     void close();
-    const std::vector<tfinode_ptr> &entries() { return entry; }
-    off_t getsize() { return size; }
-    uint32_t getclustersize() { return cluster_size; }
-    ssize_t read(uint32_t ino, char *buf, size_t size, off_t offset);
+
+    off_t getsize() { return _size; }
+    uint32_t getclustersize() { return _cluster_size; }
+    // get inode for path
+    tfinode_ptr inode4path(const char *path, int *err);
+    // get inode by index
+    tfinode_ptr inodeptr(uint32_t n);
+   
+    // read directory (inode pointing to it), return errno
+    // pass index to first new inoded and count back 
+    int readdir(tfinode_ptr inode, inode_t *first, int *count);
+    ssize_t read(inode_t ino, char *buf, size_t size, off_t offset);
+
     uint32_t fsid1() 
      {
      uint32_t t=0;
-     for (fat_t::const_iterator it=fat.begin(),stop=fat.end();it!=stop;++it)
+     for (fat_t::const_iterator it=_fat.begin(),stop=_fat.end();it!=stop;++it)
         t^=*it;
      return t;
      }
     uint32_t fsid2()
      {
-     return fatitems^cluster_size^lba_sectors^size^fd;
+     return _fatitems^_cluster_size^_lba_sectors^_size^_fd;
      }
      
-  };
+};
 
 #endif // __TFDISK_H__

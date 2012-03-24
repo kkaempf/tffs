@@ -40,68 +40,75 @@ static tfdisk *tf;
 // *************************************************************************
 // tffs_getattr
 
-static int tffs_getattr(const char *path, struct stat *stbuf)
+static int
+tffs_getattr(const char *path, struct stat *stbuf)
 {
-  if (path[0] != '/')
-    return -ENOENT;
+  int err;
+  fprintf(stderr, "tffs_getattr(%s)\n", path);
 
-  if (path[1] == 0) {
-    memset(stbuf, 0, sizeof(struct stat));
-    stbuf->st_ino = 1;
-    stbuf->st_mode = S_IFDIR | 0755;
-    stbuf->st_nlink = 2;
-    return 0;
+  tfinode_ptr inode = tf->inode4path(path, &err);
+  if (err) {
+    fprintf(stderr, "tffs_getattr -> %d\n", err);
+    return err;
   }
+  memcpy(stbuf, &(inode->st), sizeof(struct stat));
 
-  for (std::vector < tfinode_ptr >::const_iterator it = tf->entries().begin();
-       it != tf->entries().end(); ++it)
-    if (!strcmp(path + 1, (*it)->d.name)) {
-      memcpy(stbuf, &(*it)->s, sizeof(struct stat));
-      return 0;
-    }
-
-  return -ENOENT;
+  return 0;
 }
 
 // *************************************************************************
 // tffs_readdir
 
-static int tffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+static int
+tffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                         off_t offset, struct fuse_file_info *fi)
 {
-  if (strcmp(path, "/") != 0)
-    return -ENOENT;
+  int err;
+  inode_t first;
+  int count;
+
+  fprintf(stderr, "tffs_readdir(%s@%08lx)\n", path, offset);
+  // get inode for directory
+  tfinode_ptr inode = tf->inode4path(path, &err);
+
+  if (err != 0)
+    return err;
+    
+  err = tf->readdir(inode, &first, &count);
+  if (err != 0)
+    return err;
 
   filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
 
-  for (std::vector < tfinode_ptr >::const_iterator it = tf->entries().begin();
-       it != tf->entries().end(); ++it)
-    filler(buf, (*it)->d.name, &(*it)->s, 0);
-
+  while (count--) {
+    inode = tf->inodeptr(first++);
+//    fprintf(stderr, "filler %d (%d left) @%p\n", first, count, inode);
+    if (!inode)
+      break;
+    filler(buf, inode->entry.name, &(inode->st), 0);
+  }
   return 0;
 }
 
 // *************************************************************************
 // tffs_open
 
-static int tffs_open(const char *path, struct fuse_file_info *fi)
+static int
+tffs_open(const char *path, struct fuse_file_info *fi)
 {
-  if (path[0] != '/')
-    return -ENOENT;
-  if (path[1] == 0)
-    return -EISDIR;
+  tfinode_ptr inode;
+  int err;
+  fprintf(stderr, "tffs_open(%s)\n", path);
+  inode = tf->inode4path(path, &err);
+  
+  if (err)
+    return err;
 
-  for (std::vector < tfinode_ptr >::const_iterator it = tf->entries().begin();
-       it != tf->entries().end(); ++it)
-    if (!strcmp(path + 1, (*it)->d.name)) {
-      if ((fi->flags & 3) != O_RDONLY)
-        return -EACCES;
-      fi->fh = (*it)->s.st_ino; // inode number
-      return 0;
-    }
-
-  return -ENOENT;
+  if ((fi->flags & 3) != O_RDONLY)
+    return -EACCES;
+  fi->fh = inode->st.st_ino;
+  return 0;
 }
 
 // *************************************************************************
@@ -110,25 +117,32 @@ static int tffs_open(const char *path, struct fuse_file_info *fi)
 static int tffs_read(const char *path, char *buf, size_t size, off_t offset,
                      struct fuse_file_info *fi)
 {
+  fprintf(stderr, "tffs_read(%s@%08lx:%ld)\n", path, offset, size);
   return tf->read(fi->fh, buf, size, offset);
 }
 
 // *************************************************************************
 // tffs_statfs
 
-static int tffs_statfs(const char *path, struct statfs *sfs)
+static int
+tffs_statfs(const char *path, struct statfs *sfs)
 {
-// sfs->f_type = ('t'<<24)|('f'<<16)|('f'<<8)|('s');
-  sfs->f_bsize = tf->getclustersize();
-  sfs->f_blocks = tf->getsize() / sfs->f_bsize;
-  sfs->f_bfree = sfs->f_bavail = 0;
-  sfs->f_files = tf->entries().size() + 1;
-  sfs->f_ffree = 0;
-// sfs->f_fsid.__val[0] = tf->fsid1();
-// sfs->f_fsid.__val[1] = tf->fsid2() ^ sfs->f_fsid.__val[0];
-  sfs->f_namelen = 512;
-
-  return 0;
+  tfinode_ptr inode;
+  int err = 0;
+  fprintf(stderr, "tffs_statfs(%s)\n", path);
+  inode = tf->inode4path(path, &err);
+  if (!err) {
+    // sfs->f_type = ('t'<<24)|('f'<<16)|('f'<<8)|('s');
+    sfs->f_bsize = tf->getclustersize();
+    sfs->f_blocks = tf->getsize() / sfs->f_bsize;
+    sfs->f_bfree = sfs->f_bavail = 0;
+    sfs->f_files = 42; //tf->root.size() + 1;
+    sfs->f_ffree = 0;
+    // sfs->f_fsid.__val[0] = tf->fsid1();
+    // sfs->f_fsid.__val[1] = tf->fsid2() ^ sfs->f_fsid.__val[0];
+    sfs->f_namelen = 512;
+  }
+  return err;
 }
 
 // *************************************************************************
@@ -161,7 +175,7 @@ int main(int argc, char *argv[])
 
   int newargc = 1;
 
-  newargv[newargc++] = "-r";
+  newargv[newargc++] = strdup("-r");
 
   for (int i = 1; i < argc; ++i) {
     if (argv[i][0] != '-' && !device)
@@ -180,7 +194,7 @@ int main(int argc, char *argv[])
 
   tf = &tfd;
 
-  if (!tfd.open()) {
+  if (tfd.open()) {
     //fprintf(stderr,"%s: %s\n",argv[0],strerror(errno));
     exit(1);
   }
