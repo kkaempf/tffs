@@ -29,21 +29,22 @@
 #ifndef __TFDISK_H__
 #define __TFDISK_H__
 
-#include <stdint.h>
 #include <sys/stat.h>
-#include <string>
 #include <vector>
+#include <string>
 #include "topfield.h"
 
-#include <boost/shared_ptr.hpp>
-typedef boost::shared_ptr<directory_entry_t> directory_entry_ptr;
-typedef boost::shared_ptr<tf_dir_t> tf_dir_ptr;
+#include <tr1/memory>
+
+typedef std::tr1::shared_ptr<directory_entry_t> directory_entry_ptr;
+typedef std::tr1::shared_ptr<tf_dir_t> tf_dir_ptr;
 
 struct tffilesegment
   {
   int64_t offset;
   int64_t size;
   int64_t pos;
+  tffilesegment() : offset(0), size(0), pos(0) {}
   tffilesegment(int64_t _offset, uint32_t _size, int64_t _pos) : offset(_offset),size(_size),pos(_pos) {}
   };
 
@@ -51,16 +52,24 @@ struct tfinode
   {
   tf_dir_t d;
   struct stat s;
-  tffilesegment *seg;
+  typedef std::vector<tffilesegment> seg_t;
+  seg_t seg;
   
-  tfinode() : seg(0) {}
-  ~tfinode();
+//   tfinode() {}
+//   ~tfinode() {}
   };
-typedef boost::shared_ptr<tfinode> tfinode_ptr;
+typedef std::tr1::shared_ptr<tfinode> tfinode_ptr;
   
+typedef enum {
+  TF_UNKNOWN = 0,
+    TF_4000 = 1,
+    TF_5000 = 2
+} tf_type_t;
+
 class tfdisk
   {
   private:
+    tf_type_t tf_type;
     /// device file name
     std::string devfn;
     /// device file descriptor
@@ -76,7 +85,8 @@ class tfdisk
     /// cluster buffer
     uint8_t *buffer;
     /// FAT
-    uint32_t *fat;
+    typedef std::vector<uint32_t> fat_t;
+    fat_t fat;
    
     std::vector<tfinode_ptr> entry;
 
@@ -86,7 +96,7 @@ class tfdisk
     void gen_filesegments(tfinode_ptr &i);
     
   public:
-    tfdisk(const char *device) : devfn(device), fd(-1),size(-1),buffer(0),fat(0) {}
+    tfdisk(const char *device) : devfn(device), fd(-1),size(-1),buffer(NULL),fat(NULL) {}
     ~tfdisk();
     
     bool open();
@@ -98,7 +108,8 @@ class tfdisk
     uint32_t fsid1() 
      {
      uint32_t t=0;
-     if (fat) for(unsigned int i=0;i<fatitems;++i) t^=fat[i];
+     for (fat_t::const_iterator it=fat.begin(),stop=fat.end();it!=stop;++it)
+        t^=*it;
      return t;
      }
     uint32_t fsid2()

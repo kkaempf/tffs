@@ -18,18 +18,20 @@ opt=opts.Add('DEBUG','debug level',0)
 ###### BUILD ENVIRONMENT
 
 env=Environment(options=opts, ENV=os.environ)
-debug=int(env['DEBUG'])
+debug=1 #int(env['DEBUG'])
 
 if (debug>0):
   env.Append(CCFLAGS='-g')
-  env.Append(CPPDEFINES={"DEBUG": None})
+  env.Append(CPPDEFINES=["DEBUG"])
 else:
   env.Append(CCFLAGS='-O3')
 
 env.Replace(CXXFILESUFFIX=".cpp")
 
-env.Append(CPPDEFINES={"_FILE_OFFSET_BITS": "64", "_LARGEFILE_SOURCE": None, "_REENTRANT": None,
-	"FUSE_USE_VERSION": 22})
+#env.Append(CPPDEFINES={"_FILE_OFFSET_BITS": "64", "_LARGEFILE_SOURCE": None, "_REENTRANT": None,
+#	"FUSE_USE_VERSION": 22})
+env.Append(CPPDEFINES=["_FILE_OFFSET_BITS=64", "_LARGEFILE_SOURCE", "_REENTRANT",
+	"FUSE_USE_VERSION=22"])
 
 for v in ("CXX","LINK"):
   if (v in os.environ):
@@ -52,6 +54,8 @@ if (not env.GetOption('clean')):
     print "Checking for libfuse... not found"
     sys.stderr.write("fatal: libfuse not found\n")
     sys.exit(1)
+  
+  conf.env.Append(LIBS=['stdc++'])
   
 ### FINISH
     

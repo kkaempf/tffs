@@ -1,3 +1,10 @@
+2008-01-06  Sven Over  <svenover@svenover.de>
+
+	* Fixed st_blocks field in stat structure. 'du' now reports correct
+	  file sizes.
+	* Various changes, fixes and clean-ups.
+	* Name mangling by Ralph Glasstetter.
+
 2005-11-30  Sven Over  <svenover@svenover.de>
 
 	* First public release.
