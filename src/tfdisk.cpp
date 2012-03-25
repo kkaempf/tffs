@@ -34,6 +34,7 @@
 #include <cerrno>
 
 #include <stdint.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -41,6 +42,8 @@
 
 #include <list>
 #include <iostream>
+
+extern "C" void hexdump (unsigned char *ptr, int size, FILE *out, const char *title);
 
 #include "tfdisk.h"
 
@@ -72,7 +75,6 @@ using namespace std;
 // *************************************************************************
 // convert_date_time (static helper function)
 
-static void make_name(char *newname, const char *oldname, const char *extension, const char space, const char def);
 static time_t convert_date_time(uint8_t * p)
 {
 /* Please see EN 300 468 Annex C - Conversion between time and date conventions */
@@ -112,6 +114,67 @@ static time_t convert_date_time(uint8_t * p)
     return 0;
   }
 
+}
+
+
+// *************************************************************************
+// char *conv_name(const char *inbuf, char *outbuf, size_t size)
+char *
+tfdisk::conv_name(const char *inbuf, char *outbuf, size_t size)
+{
+  char *out = outbuf;
+  unsigned char utf8 = 0;
+  if (inbuf == NULL
+      || outbuf == NULL)
+    return NULL;
+  if (*inbuf == 0x05) ++inbuf;
+
+  while (*inbuf && size > 0) {
+    switch ((unsigned char)*inbuf) {
+     case 0xc4: //Ä
+      utf8 = 0x84;
+      break;
+     case 0xd6: //Ö
+      utf8 = 0x96;
+      break;
+     case 0xdc: //Ü
+      utf8 = 0x9c;
+      break;
+     case 0xdf: //ß
+      utf8 = 0x9f;
+      break;
+     case 0xe4: //ä
+      utf8 = 0xa4;
+      break;
+     case 0xf6: //ö
+      utf8 = 0xb6;
+      break;
+     case 0xfc: //ü
+      utf8 = 0xbc;
+      break;
+     case 0xff: //-
+      *out++ = '-';
+      break;
+     default:
+      if ((*inbuf < 32) || (*inbuf > 126)) {
+	::fprintf(::stderr, "Bad char %02x!\n", (unsigned char)*inbuf);
+      }
+      *out++ = *inbuf;
+      break;
+    }
+    if (utf8) {
+      if (size < 2) {
+	::fprintf(::stderr, "Outbuf overflow!\n");
+	break;
+      }
+      *out++ = 0xc3; --size;
+      *out++ = utf8; --size;
+      utf8 = 0;
+    }
+    ++inbuf;
+  }
+  *out = 0;
+  return outbuf;
 }
 
 // *************************************************************************
@@ -519,6 +582,8 @@ tfdisk::gen_inodes(tfinode_ptr dir)
   int err;
   tf_entry_t *entry = (tf_entry_t *) _buffer;
   uint32_t tsdb = ~uint32_t(0);
+  
+  assert(sizeof(tf_entry_t) == 0x80);
 
   DEBUGMSG("gen_inodes for %p", dir);
 
@@ -554,6 +619,7 @@ tfdisk::gen_inodes(tfinode_ptr dir)
   
   for (int dir_entry = 0; dir_entry < first_unused; ++entry, ++dir_entry) {
     mode_t mode;
+//    hexdump((unsigned char *)entry, sizeof(tf_entry_t), stderr, "Entry");
     // types
     // ff : deleted
     // f1 : __ROOT__
@@ -583,12 +649,11 @@ tfdisk::gen_inodes(tfinode_ptr dir)
     _inodes.push_back(inode);
     dir->count++;
     inode->st.st_ino = ino++;
-    DEBUGMSG("Entry %3d/%3d: inode %ld @ %p", dir->count, dir_entry, (long int)inode->st.st_ino, (void *)inode);
+    DEBUGMSG("Entry %3d/%3d: inode %ld @ %p [%02x]", dir->count, dir_entry, (long int)inode->st.st_ino, (void *)inode, (unsigned char)entry->name[0]);
 
     inode->entry.type = entry->type;
-    strncpy(inode->entry.name, entry->name, sizeof(entry->name) - 1);
-    inode->entry.name[sizeof(entry->name) - 1] = 0;
-    DEBUGMSG("\t'%s'", inode->entry.name);
+    (void)conv_name(entry->name, inode->entry.name, sizeof(inode->entry.name)-1);
+    DEBUGMSG("\t[%s]'%s' -> '%s' ", entry->channel, entry->name, inode->entry.name);
     inode->entry.start_cluster = swap32(entry->start_cluster); 
     inode->entry.count_of_clusters = swap32(entry->count_of_clusters);
     inode->entry.empty_in_last_cluster = swap32(entry->empty_in_last_cluster);
@@ -609,36 +674,6 @@ tfdisk::gen_inodes(tfinode_ptr dir)
     if (sp->st_mode) // only for known types
       gen_filesegments(inode);
 
-  }
-
-  // Rename file ?
-  if (!strcmp(entry->name, "__FILETSDB__.ss")) {
-    tsdb = swap32(entry->start_cluster);
-  }
-
-  // File name translations ?!
-  if (tsdb != ~uint32_t(0)) {
-    if (!read_cluster(tsdb)) {
-      DEBUGMSG("tsdb %d error", tsdb);
-      return -EIO;
-    }
-    uint32_t count = (int) swap32(*((uint32_t *) _buffer));
-
-    for (uint32_t i = 1; i <= count; ++i) {
-      for (ino = dir->first; ino < dir->first + dir->count; ++ino) {
-	tfinode_ptr inode = inodeptr(ino);
-        //printf("%d. %s == %s: ",i,(*it)->entry.name,((tsdbname *) _buffer)[i]);
-        if (!strncmp(inode->entry.name, ((tsdbname *) _buffer)[i], sizeof(entry->name) - 1)) {
-	  const char *ext = (_type == TF_4000) ? ".tts" : ".rec";
-          // clean the file names from invalid chars instead just copying and
-          // add the well known file extention
-          // strncpy((*it)->entry.name, ((tsdbname *) _buffer)[i], sizeof(tsdbname)); 
-          make_name(inode->entry.name, ((tsdbname *) _buffer)[i], ext, ' ', '_');
-          //printf("%d. OLD: '%s' (char[0] = %d) ==> NEW: '%s'\n",i,((tsdbname *) _buffer)[i],((tsdbname *)  _buffer)[i][0],(*it)->entry.name);
-          break;
-        }
-      }
-    }
   }
 
   return 0;
@@ -779,97 +814,4 @@ tfdisk::gen_filesegments(tfinode_ptr inode)
     j += n;
   }
   return 0;
-}
-
-// *************************************************************************
-// void tfdisk::make_name (make valid file names)
-
-static void
-make_name(char *newname, const char *oldname, const char *extension, const char space, const char def)
-{
-	// TODO: - one could make the extension & default replacement character ('_' or NULL?) for special chars externally configurable 
-        //       - the replacement of spaces externally switchable (' ' or '_' or NULL?)
-
-	while (*oldname) {
-                if (strchr("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-+=;$!@#$%^&()[]{}_", *oldname)) {
-                // accept only "normal" chars listed above
-		        *newname = *oldname;
-                        //printf("1. normal %c / %d / %x ==> %c\n",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-	                newname++;
-                } else if ((unsigned char)*oldname > 31 ) {
-                // replace every (printable) character NOT listed above, for instance language specific characters (and discard the rest)
-                        if((unsigned char)*oldname == 0xe4) {
-                                // conversion for special language specific (latin1) chars? 
-			        *newname = 'a';
-                                //printf("2. special '%c' / %u / %x ==> '%c",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-		                newname++;
-			        *newname = 'e';
-                                //printf("%c'\n",*newname);
-		                newname++;
-                        } else if((unsigned char)*oldname == 0xf6) {
-                                // conversion for special language specific (latin1) chars? 
-			        *newname = 'o';
-                                //printf("2. special '%c' / %u / %x ==> '%c",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-		                newname++;
-			        *newname = 'e';
-                                //printf("%c'\n",*newname);
-		                newname++;
-                        } else if((unsigned char)*oldname == 0xfc) {
-                                // conversion for special language specific (latin1) chars? 
-			        *newname = 'u';
-                                //printf("2. special '%c' / %u / %x ==> '%c",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-		                newname++;
-			        *newname = 'e';
-                                //printf("%c'\n",*newname);
-		                newname++;
-                        } else if((unsigned char)*oldname == 0xc4) {
-                                // conversion for special language specific (latin1) chars? 
-			        *newname = 'A';
-                                //printf("2. special '%c' / %u / %x ==> '%c",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-		                newname++;
-			        *newname = 'e';
-                                //printf("%c'\n",*newname);
-		                newname++;
-                        } else if((unsigned char)*oldname == 0xd6) {
-                                // conversion for special language specific (latin1) chars? 
-			        *newname = 'O';
-                                //printf("2. special '%c' / %u / %x ==> '%c",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-		                newname++;
-			        *newname = 'e';
-                                //printf("%c'\n",*newname);
-		                newname++;
-                        } else if((unsigned char)*oldname == 0xdc) {
-                                // conversion for special language specific (latin1) chars? 
-			        *newname = 'U';
-                                //printf("2. special '%c' / %u / %x ==> '%c",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-		                newname++;
-			        *newname = 'e';
-                                //printf("%c'\n",*newname);
-		                newname++;
-                        } else if((unsigned char)*oldname == 0xdf) {
-                                // conversion for special language specific (latin1) chars? 
-			        *newname = 's';
-                                //printf("2. special '%c' / %u / %x ==> '%c",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-		                newname++;
-			        *newname = 's';
-                                //printf("%c'\n",*newname);
-		                newname++;
-                        } else if((unsigned char)*oldname == 32 && space!=0x0) {
-                                // better accept spaces (among other "normal" chars from above) since otherwise one can get ambiguous/double file names! 
-                                *newname = space;
-                                //printf("2. special '%c' / %u / %x ==> '%c'\n",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-		                newname++;
-			} else if(def!=0x0) {
-                                // all others get the default character
-                                *newname = def;
-                                //printf("2. special '%c' / %u / %x ==> '%c'\n",*oldname,(unsigned char)*oldname,(unsigned char)*oldname,*newname);
-		                newname++;
-                        }
-		}
-                //else
-                  //printf("3. non-printable '%c' / %u / %x ==> DISCARD!\n",*oldname,(unsigned char)*oldname,(unsigned char)*oldname);
-		oldname++;
-	}
-	*newname = '\0';
-	strcat(newname, extension);
 }

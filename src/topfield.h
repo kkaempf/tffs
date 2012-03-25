@@ -57,9 +57,11 @@ struct tf_entry_t {
 	uint8_t	type;	/* 0 */
 	uint8_t	data[7]; /* 1 */
 	cluster_t	start_cluster; /* 8 */
-	uint32_t	count_of_clusters; /* C */
-	uint32_t	empty_in_last_cluster; /* 10 */
-	char		name[108]; /* 14 */
+	uint32_t	count_of_clusters; /* 12, 0x0C */
+	uint32_t	empty_in_last_cluster; /* 16, 0x10 */
+	char		name[64]; /* 20, 0x14 */
+        char            channel[40]; /* 84, 0x54 */
+        uint8_t         data1[4]; /* 124, 0x7c */
 } __attribute__((packed)); /* sizeof = 0x80 = 128 */
 
 #if 0

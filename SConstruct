@@ -66,7 +66,7 @@ env=conf.Finish()
 env.bin_targets=[]
 sources=[]
 
-for i in "main.cpp tfdisk.cpp".split():
+for i in "main.cpp tfdisk.cpp hexdump.c".split():
   sources.append(os.path.join("src",i))
 
 env.bin_targets.append(env.Program(os.path.join("bin","mount.tffs"),sources))

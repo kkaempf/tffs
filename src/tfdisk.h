@@ -111,6 +111,9 @@ class tfdisk
     // generate file segment data, return error
     int gen_filesegments(tfinode_ptr inode);
 
+    // filename conversion
+   char *conv_name(const char *inbuf, char *outbuf, size_t size);
+
   public:
     tfdisk(const char *device) : _devfn(device), _fd(-1), _size(-1), _buffer(NULL), _fat(NULL) {}
     ~tfdisk();

@@ -1,4 +1,4 @@
-TFFS README -- last edited 2005-11-30
+TFFS README -- last edited 2012-03-24
 
 This is tffs, a read-only driver for the T*PFIELD file system, based on FUSE,
 the file system in userspace. With tffs you can mount a hard disk from a
@@ -41,3 +41,8 @@ regular mount program (/bin/mount), by specifying "-t tffs":
 mount /dev/sdb /mnt -t tffs -o allow_other
 
 This way, it is easy to configure an automounter for mounting a T*PFIELD disk.
+
+
+----
+Filename conversion. TFFS uses Windows-1252 encoding for non-ASCII
+characters in filenames. 
