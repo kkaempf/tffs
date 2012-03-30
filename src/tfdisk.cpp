@@ -124,6 +124,7 @@ tfdisk::conv_name(const char *inbuf, char *outbuf, size_t size)
 {
   char *out = outbuf;
   unsigned char utf8 = 0;
+  unsigned char utf8_start = 0;
   if (inbuf == NULL
       || outbuf == NULL)
     return NULL;
@@ -131,6 +132,10 @@ tfdisk::conv_name(const char *inbuf, char *outbuf, size_t size)
 
   while (*inbuf && size > 0) {
     switch ((unsigned char)*inbuf) {
+     case 0xad: // soft hyphen
+      utf8_start = 0xc2;
+      utf8 = 0xad;
+      break;
      case 0xc4: //Ä
       utf8 = 0x84;
       break;
@@ -167,7 +172,8 @@ tfdisk::conv_name(const char *inbuf, char *outbuf, size_t size)
 	::fprintf(::stderr, "Outbuf overflow!\n");
 	break;
       }
-      *out++ = 0xc3; --size;
+      *out++ = utf8_start ? utf8_start : 0xc3; --size;
+      utf8_start = 0;
       *out++ = utf8; --size;
       utf8 = 0;
     }
@@ -249,9 +255,9 @@ tfdisk::open()
 
   DEBUGMSG("Size %lld/%lldK/%lldM", _size, _size/1024LL, _size/1024LL/1024LL);
   _lba_sectors = _size / 512LL;
-  DEBUGMSG("Sectors %lld/%08llx", _lba_sectors, _lba_sectors);
+  DEBUGMSG("Sectors %lld/0x%08llx", _lba_sectors, _lba_sectors);
   _cluster_size = swap16(superblock.cluster_size) << 9;
-  DEBUGMSG("Clustersize %04ld/%04ld", superblock.cluster_size, _cluster_size);
+  DEBUGMSG("Clustersize %04ld sectors / 0x%04lx bytes", swap16(superblock.cluster_size), _cluster_size);
 
   delete [] _buffer;
   _buffer = NULL;
@@ -540,7 +546,7 @@ int
 tfdisk::read_cluster(cluster_t n)
 {
   off_t pos = ((off_t)(n + 1)) * _cluster_size;
-  DEBUGMSG("Read cluster %d at %08ld[sector %08lx]", n, pos, pos>>9);
+  DEBUGMSG("Read cluster %d at %08lx[sector %08lx]", n, pos, pos>>9);
   
   if (pos + _cluster_size > _size) {
     cerr << "Attempt to read " << _cluster_size << " bytes at " << pos << " which is after end of disk " << _size << " !" << endl;
@@ -691,6 +697,9 @@ tfdisk::read_fat()
   bool fat2bad = false;
 
   DEBUGMSG("read_fat");
+  
+  _fatalloc = 0;
+
   // Read in the cluster with both FATs
   err = read_cluster(FAT_CLUSTER);
   if (err)
@@ -706,7 +715,9 @@ tfdisk::read_fat()
 
   for (uint32_t i = 0; i < _fatitems; ++i) {
     uint32_t val = (buf[3 * i] << 16) | (buf[3 * i + 1] << 8) | buf[3 * i + 2];
-
+    if (i < 32) {
+      DEBUGMSG("FAT[%d] = %x", i, val);
+    }
     // Check each item for validity
     if (val < 0xfffffb && val > (_lba_sectors >> 11)) {
       DEBUGMSG( "FAT1 item #%d wrong (%ld/%08x)\n", i, val, val);
@@ -717,9 +728,13 @@ tfdisk::read_fat()
         fat1bad = true;
       }
     }
+    else if (val != 0xffffff) {
+      _fatalloc++;
+    }
 
     fat1.push_back(val);
   }
+  DEBUGMSG("FAT %d of %d item allocated", _fatalloc, _fatitems);
 
   // second FAT table
   buf = _buffer + (0x400 << 9);

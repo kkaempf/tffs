@@ -1,3 +1,4 @@
+
 /*  tffs - Top Field File System driver for FUSE
     Copyright (c) 2005 Sven Over <svenover@svenover.de>
     
@@ -135,12 +136,12 @@ tffs_statfs(const char *path, struct statfs *sfs)
     // sfs->f_type = ('t'<<24)|('f'<<16)|('f'<<8)|('s');
     sfs->f_bsize = tf->getclustersize();
     sfs->f_blocks = tf->getsize() / sfs->f_bsize;
-    sfs->f_bfree = sfs->f_bavail = 0;
+    sfs->f_bavail = sfs->f_bfree = (tf->getfatsize() - tf->getfatalloc());
     sfs->f_files = 42; //tf->root.size() + 1;
     sfs->f_ffree = 0;
     // sfs->f_fsid.__val[0] = tf->fsid1();
     // sfs->f_fsid.__val[1] = tf->fsid2() ^ sfs->f_fsid.__val[0];
-    sfs->f_namelen = 512;
+    sfs->f_namelen = 64;
   }
   return err;
 }

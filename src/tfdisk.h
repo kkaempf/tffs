@@ -84,6 +84,8 @@ class tfdisk
     uint32_t _cluster_size;
     /// number of FAT items
     uint32_t _fatitems;
+    /// number of allocated FAT items
+    uint32_t _fatalloc;
     /// cluster buffer
     uint8_t *_buffer;
     /// FAT
@@ -123,6 +125,8 @@ class tfdisk
 
     off_t getsize() { return _size; }
     uint32_t getclustersize() { return _cluster_size; }
+    uint32_t getfatsize() { return _fatitems; }
+    uint32_t getfatalloc() { return _fatalloc; }
     // get inode for path
     tfinode_ptr inode4path(const char *path, int *err);
     // get inode by index
