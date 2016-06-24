@@ -1,12 +1,12 @@
 /*  tffs - Top Field File System driver for FUSE
     Copyright (c) 2005 Sven Over <svenover@svenover.de>
-    
+
     All information on the T*PFIELD file system, and also some
     parts of the code (especially the data structures in topfield.h),
     are taken from the original
     "Console driver program for Topfield TF4000PVR disk processing"
     Copyright (c) 2002 Petr Novak <topfield@centrum.cz>
-    
+
     Some parts of the code are taken from example programs included in
     "FUSE: Filesystem in Userspace"
     Copyright (c) 2001-2005  Miklos Szeredi <miklos@szeredi.hu>
@@ -61,7 +61,7 @@ struct tfinode
   inode_t first; // first dir entry, if dir, 0 else
   int32_t count; // # of dir entries, if dir, -1 else
 };
-  
+
 typedef enum {
   TF_UNKNOWN = 0,
     TF_4000 = 1,
@@ -91,25 +91,25 @@ class tfdisk
     /// FAT
     typedef std::vector<uint32_t> fat_t;
     fat_t _fat;
-   
+
     // all inodes, indexed by inode #, starting from 1
     std::vector<tfinode_ptr> _inodes;
 
     // read_* functions to real I/O
 
     // read fat table
-    int read_fat();  
+    int read_fat();
 
     // read cluster to buffer
     int read_cluster(cluster_t n);
-   
+
     // collect inodes with same parent
-    // inodes within a directory are consecutive, 
+    // inodes within a directory are consecutive,
     int collect_inodes(tfinode_ptr parent, inode_t *first, int *count);
-   
+
     // generate inodes from directory, return error
     int gen_inodes(tfinode_ptr inode);
-   
+
     // generate file segment data, return error
     int gen_filesegments(tfinode_ptr inode);
 
@@ -117,9 +117,9 @@ class tfdisk
    char *conv_name(const char *inbuf, char *outbuf, size_t size);
 
   public:
-    tfdisk(const char *device) : _devfn(device), _fd(-1), _size(-1), _buffer(NULL), _fat(NULL) {}
+    tfdisk(const char *device) : _devfn(device), _fd(-1), _size(-1), _buffer(NULL), _fat() {}
     ~tfdisk();
-    
+
     int open(); // returning errno
     void close();
 
@@ -131,13 +131,13 @@ class tfdisk
     tfinode_ptr inode4path(const char *path, int *err);
     // get inode by index
     tfinode_ptr inodeptr(uint32_t n);
-   
+
     // read directory (inode pointing to it), return errno
-    // pass index to first new inoded and count back 
+    // pass index to first new inoded and count back
     int readdir(tfinode_ptr inode, inode_t *first, int *count);
     ssize_t read(inode_t ino, char *buf, size_t size, off_t offset);
 
-    uint32_t fsid1() 
+    uint32_t fsid1()
      {
      uint32_t t=0;
      for (fat_t::const_iterator it=_fat.begin(),stop=_fat.end();it!=stop;++it)
@@ -148,7 +148,7 @@ class tfdisk
      {
      return _fatitems^_cluster_size^_lba_sectors^_size^_fd;
      }
-     
+
 };
 
 #endif // __TFDISK_H__

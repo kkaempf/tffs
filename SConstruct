@@ -20,6 +20,8 @@ opt=opts.Add('DEBUG','debug level',0)
 env=Environment(options=opts, ENV=os.environ)
 debug=1 #int(env['DEBUG'])
 
+env.Append(CCFLAGS='-Wall')
+
 if (debug>0):
   env.Append(CCFLAGS='-g')
   env.Append(CPPDEFINES=["DEBUG"])
@@ -36,7 +38,7 @@ env.Append(CPPDEFINES=["_FILE_OFFSET_BITS=64", "_LARGEFILE_SOURCE", "_REENTRANT"
 for v in ("CXX","LINK"):
   if (v in os.environ):
     env.Replace(**{v: os.environ[v]})
-    
+
 ###### CONTEXT CHECKS
 
 conf=Configure(env)
@@ -54,11 +56,11 @@ if (not env.GetOption('clean')):
     print "Checking for libfuse... not found"
     sys.stderr.write("fatal: libfuse not found\n")
     sys.exit(1)
-  
+
   conf.env.Append(LIBS=['stdc++'])
-  
+
 ### FINISH
-    
+
 env=conf.Finish()
 
 ###### WORK
