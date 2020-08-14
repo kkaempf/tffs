@@ -1,13 +1,13 @@
 
 /*  tffs - Top Field File System driver for FUSE
     Copyright (c) 2005 Sven Over <svenover@svenover.de>
-    
+
     All information on the T*PFIELD file system, and also some
     parts of the code (especially the data structures in topfield.h),
     are taken from the original
     "Console driver program for Topfield TF4000PVR disk processing"
     Copyright (c) 2002 Petr Novak <topfield@centrum.cz>
-    
+
     Some parts of the code are taken from example programs included in
     "FUSE: Filesystem in Userspace"
     Copyright (c) 2001-2005  Miklos Szeredi <miklos@szeredi.hu>
@@ -74,7 +74,7 @@ tffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
   if (err != 0)
     return err;
-    
+
   err = tf->readdir(inode, &first, &count);
   if (err != 0)
     return err;
@@ -102,7 +102,7 @@ tffs_open(const char *path, struct fuse_file_info *fi)
   int err;
   fprintf(stderr, "tffs_open(%s)\n", path);
   inode = tf->inode4path(path, &err);
-  
+
   if (err)
     return err;
 
@@ -128,10 +128,9 @@ static int tffs_read(const char *path, char *buf, size_t size, off_t offset,
 static int
 tffs_statfs(const char *path, struct statfs *sfs)
 {
-  tfinode_ptr inode;
   int err = 0;
   fprintf(stderr, "tffs_statfs(%s)\n", path);
-  inode = tf->inode4path(path, &err);
+  (void)tf->inode4path(path, &err);
   if (!err) {
     // sfs->f_type = ('t'<<24)|('f'<<16)|('f'<<8)|('s');
     sfs->f_bsize = tf->getclustersize();
@@ -192,15 +191,19 @@ int main(int argc, char *argv[])
 
   // Create tfdisk object
   tfdisk tfd(device);
-
   tf = &tfd;
 
   if (tfd.open()) {
-    //fprintf(stderr,"%s: %s\n",argv[0],strerror(errno));
+    fprintf(stderr,"%s: %s\n",argv[0],strerror(errno));
     exit(1);
   }
-  
+
   // Run FUSE main loop
   newargv[newargc] = NULL;
-  return fuse_main(newargc, newargv, &tffs_oper);
+  int fuseRet = fuse_main(newargc, newargv, &tffs_oper);
+  if (fuseRet) {
+    fprintf(stderr,"Fuse_main return error: %d:", fuseRet);
+  }
+
+  return fuseRet;
 }
