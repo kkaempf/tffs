@@ -5,3 +5,4 @@
 bin
 debian/tffs
 .sconsign.dblite
+.sconf_temp
