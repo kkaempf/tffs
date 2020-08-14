@@ -1,12 +1,12 @@
 /*  tffs - Top Field File System driver for FUSE
     Copyright (c) 2005 Sven Over <svenover@svenover.de>
-    
+
     All information on the T*PFIELD file system, and also some
     parts of the code (especially the data structures in topfield.h),
     are taken from the original
     "Console driver program for Topfield TF4000PVR disk processing"
     Copyright (c) 2002 Petr Novak <topfield@centrum.cz>
-    
+
     Some parts of the code are taken from example programs included in
     "FUSE: Filesystem in Userspace"
     Copyright (c) 2001-2005  Miklos Szeredi <miklos@szeredi.hu>
@@ -199,7 +199,6 @@ int
 tfdisk::open()
 {
   int err = 0;
-  const std::vector<tfinode_ptr> *root;
 
   if (_fd >= 0)
     close();
@@ -238,7 +237,7 @@ tfdisk::open()
   }
   // is the device a T*PFIELD PVR HDD?
   _type = TF_UNKNOWN;
-  
+
   if (strcmp(superblock.signature, "TOPFIELD PVR HDD") == 0) {
     _type = TF_4000;
     DEBUGMSG("Found TF4000, version %04x", superblock.version);
@@ -253,20 +252,20 @@ tfdisk::open()
     return errno;
   }
 
-  DEBUGMSG("Size %lld/%lldK/%lldM", _size, _size/1024LL, _size/1024LL/1024LL);
+  DEBUGMSG("Size %ld/%lldK/%lldM", _size, _size/1024LL, _size/1024LL/1024LL);
   _lba_sectors = _size / 512LL;
-  DEBUGMSG("Sectors %lld/0x%08llx", _lba_sectors, _lba_sectors);
+  DEBUGMSG("Sectors %ld/0x%08lx", _lba_sectors, _lba_sectors);
   _cluster_size = swap16(superblock.cluster_size) << 9;
-  DEBUGMSG("Clustersize %04ld sectors / 0x%04lx bytes", swap16(superblock.cluster_size), _cluster_size);
+  DEBUGMSG("Clustersize %04d sectors / 0x%04x bytes", swap16(superblock.cluster_size), _cluster_size);
 
   delete [] _buffer;
   _buffer = NULL;
   _buffer = new uint8_t [_cluster_size];
 
   _fatitems = ((uint32_t) (_lba_sectors / (_cluster_size >> 9))) - 1;
-  DEBUGMSG("%ld clusters", _fatitems);
+  DEBUGMSG("%d clusters", _fatitems);
   if (_fatitems > TF_MAXFATSIZE) {
-    DEBUGMSG("TF_MAXFATSIZE %ld", TF_MAXFATSIZE);
+    DEBUGMSG("TF_MAXFATSIZE %d", TF_MAXFATSIZE);
     _fatitems = TF_MAXFATSIZE;
   }
   // read FAT table
@@ -333,7 +332,7 @@ tfdisk::inodeptr(uint32_t n)
 tfinode_ptr
 tfdisk::inode4path(const char *path, int *err)
 {
-  tfinode_ptr inode;
+  tfinode_ptr inode = 0;
 
   *err = 0;
   DEBUGMSG("inode4path(%s)", path);
@@ -369,13 +368,13 @@ tfdisk::inode4path(const char *path, int *err)
   // split path at '/'
   // read directory
   // compare entries with path elements
-  // 
+  //
   for(;;) {
     const char *next = strchr(++path, '/');
     if (!next)
       next = path + strlen(path);
-    DEBUGMSG("Looking for <%s>[%d]", path, next - path);
-    
+    DEBUGMSG("Looking for <%s>[%ld]", path, next - path);
+
     DEBUGMSG("In loop, reading dir for '%s'", inode->entry.name);
     *err = readdir(inode, &first, &count);
     if (*err)
@@ -404,14 +403,13 @@ tfdisk::inode4path(const char *path, int *err)
 // *************************************************************************
 // tfdisk::readdir
 // collect inodes from cache
-// 
+//
 int
 tfdisk::readdir(tfinode_ptr inode, inode_t *first, int *count )
 {
   int err;
-  uint32_t i;
 
-  DEBUGMSG("tfdisk::readdir(%d)", inode->st.st_ino);
+  DEBUGMSG("tfdisk::readdir(%lu)", inode->st.st_ino);
   err = gen_inodes(inode);
   if (err)
     return err;
@@ -450,28 +448,28 @@ tfdisk::read(inode_t ino, char *buf, size_t size, off_t offset)
   ssize_t written = 0;
 
   while (size > 0 && seq->size > 0) {
-    
+
     DEBUGMSG("size=%lld, seq->size=%lld", (long long) size, (long long) seq->size);
-    
+
     if (offset >= seq->offset + seq->size) {
       ++seq;
       DEBUGMSG("offset(%lld) >= seq->offset(%lld) + seq->size(%lld)", (long long) offset,
                (long long) seq->offset, (long long) seq->size);
     }
-    
+
     // seek to position
     // if offset is an odd number, decrement seek position
     if (seq->size <= (offset - seq->offset))
       continue;
 
-    off_t s64 = (int64_t(seq->size) - (offset - seq->offset));
-    size_t s = (s64 > size) ? size : s64;
+    const off_t s64 = (int64_t(seq->size) - (offset - seq->offset));
+    size_t s = (s64 > (long long int)size) ? size : s64;
 
     if (lseek(_fd, (seq->pos + (offset & ~1ll) - seq->offset), SEEK_SET) == -1) {
       cerr << "lseek: " << strerror(errno) << endl;
       return -EIO;
     }
-    
+
     // if offset is an odd number, read one byte into minibuffer and discard one byte
     // (byte swapping!)
     if ((offset & 1) || (s == 1)) {
@@ -486,7 +484,7 @@ tfdisk::read(inode_t ino, char *buf, size_t size, off_t offset)
         if (rd != 0)
           break;
       }
-      
+
       DEBUGMSG("---");
 
       *buf = minibuffer[(offset & 1) ? 0 : 1];
@@ -525,7 +523,7 @@ tfdisk::read(inode_t ino, char *buf, size_t size, off_t offset)
       for (p = (uint32_t *) buf, e = p + s / 4; p != e; ++p)
 	*p = bswap_32(*p);
     }
-    
+
     written += rd;
     buf += s;
     offset += s;
@@ -547,7 +545,7 @@ tfdisk::read_cluster(cluster_t n)
 {
   off_t pos = ((off_t)(n + 1)) * _cluster_size;
   DEBUGMSG("Read cluster %d at %08lx[sector %08lx]", n, pos, pos>>9);
-  
+
   if (pos + _cluster_size > _size) {
     cerr << "Attempt to read " << _cluster_size << " bytes at " << pos << " which is after end of disk " << _size << " !" << endl;
     return -EFBIG;
@@ -587,8 +585,7 @@ tfdisk::gen_inodes(tfinode_ptr dir)
 {
   int err;
   tf_entry_t *entry = (tf_entry_t *) _buffer;
-  uint32_t tsdb = ~uint32_t(0);
-  
+
   assert(sizeof(tf_entry_t) == 0x80);
 
   DEBUGMSG("gen_inodes for %p", dir);
@@ -597,32 +594,32 @@ tfdisk::gen_inodes(tfinode_ptr dir)
     return -EINVAL;
   if (!S_ISDIR(dir->st.st_mode))
     return -ENOTDIR;
-  
+
   if (dir->count >= 0) { // already cached
     DEBUGMSG("Already cached with %d entries", dir->count);
     return 0;
   }
 
   cluster_t cluster = dir->entry.start_cluster;
-  DEBUGMSG("Not cached, reading cluster %d", cluster);  
+  DEBUGMSG("Not cached, reading cluster %d", cluster);
   // FIXME: handle directories spanning multiple clusters!
   err = read_cluster(cluster);
   if (err)
     return err;
   if (entry->type != 0xF1) {
-    DEBUGMSG("Wrong directory type (%02x != F1) at cluster %ld", entry->type, cluster);
+    DEBUGMSG("Wrong directory type (%02x != F1) at cluster %u", entry->type, cluster);
     return -EINVAL;
   }
 
   // first unused entry in dir, incl. deleted items
   int first_unused = (_cluster_size - swap32(entry->empty_in_last_cluster)) / sizeof(tf_entry_t);
   inode_t ino = _inodes.size();
-  DEBUGMSG("read_dir cluster %ld: %d entries, first inode %d", cluster, first_unused, ino);
+  DEBUGMSG("read_dir cluster %u: %d entries, first inode %d", cluster, first_unused, ino);
   dir->first = ino;
   dir->count = 0; // count valid entries
-  
+
   // traverse directory, generate inodes
-  
+
   for (int dir_entry = 0; dir_entry < first_unused; ++entry, ++dir_entry) {
     mode_t mode;
 //    hexdump((unsigned char *)entry, sizeof(tf_entry_t), stderr, "Entry");
@@ -639,7 +636,7 @@ tfdisk::gen_inodes(tfinode_ptr dir)
       case 0xf1: mode = 0; break; /* '.' -> see filler() in main() */
       case 0xf2: mode = S_IFDIR | 0555; break; /* dr_xr_xr_x dir */
       case 0xf3: mode = S_IFDIR | 0500; break; /* dr_x______ hidden dir */
-      case 0xff: mode = 0; break; /* deleted */ 
+      case 0xff: mode = 0; break; /* deleted */
       default: mode = 0;
 	DEBUGMSG( "Unknown type %02x\n", entry->type);
         break;
@@ -660,7 +657,7 @@ tfdisk::gen_inodes(tfinode_ptr dir)
     inode->entry.type = entry->type;
     (void)conv_name(entry->name, inode->entry.name, sizeof(inode->entry.name)-1);
     DEBUGMSG("\t[%s]'%s' -> '%s' ", entry->channel, entry->name, inode->entry.name);
-    inode->entry.start_cluster = swap32(entry->start_cluster); 
+    inode->entry.start_cluster = swap32(entry->start_cluster);
     inode->entry.count_of_clusters = swap32(entry->count_of_clusters);
     inode->entry.empty_in_last_cluster = swap32(entry->empty_in_last_cluster);
     memcpy(inode->entry.data, entry->data, sizeof(entry->data));
@@ -676,7 +673,7 @@ tfdisk::gen_inodes(tfinode_ptr dir)
     sp->st_blocks = ( uint64_t(inode->entry.count_of_clusters) * _cluster_size + 511 ) / 512;
     sp->st_atime = sp->st_mtime = sp->st_ctime = convert_date_time(inode->entry.data);
     DEBUGMSG("\tstart_cluster %d, count %d, empty %d: %ld MB", inode->entry.start_cluster, inode->entry.count_of_clusters, inode->entry.empty_in_last_cluster, sp->st_size/1024L);
-    
+
     if (sp->st_mode) // only for known types
       gen_filesegments(inode);
 
@@ -697,7 +694,7 @@ tfdisk::read_fat()
   bool fat2bad = false;
 
   DEBUGMSG("read_fat");
-  
+
   _fatalloc = 0;
 
   // Read in the cluster with both FATs
@@ -720,7 +717,7 @@ tfdisk::read_fat()
     }
     // Check each item for validity
     if (val < 0xfffffb && val > (_lba_sectors >> 11)) {
-      DEBUGMSG( "FAT1 item #%d wrong (%ld/%08x)\n", i, val, val);
+      DEBUGMSG( "FAT1 item #%d wrong (%u/%08x)\n", i, val, val);
       if ((val & 0xffff) == i + 1) {
         val &= 0xffff;
       } else {
@@ -746,11 +743,11 @@ tfdisk::read_fat()
 
     if (val < 0xfffffb && val > (_lba_sectors >> 11)) {
 //      cerr << "FAT2 item #" << i << " wrong (" << val << ")!" << endl;
-      DEBUGMSG( "FAT2 item #%d wrong (%ld/%08x)\n", i, val, val);
+      DEBUGMSG( "FAT2 item #%d wrong (%u/%08x)\n", i, val, val);
       val = ~0L;
       fat2bad = true;
     }
-    
+
     fat2.push_back(val);
 
     // Check if FAT1 and FAT2 are identical
@@ -761,7 +758,7 @@ tfdisk::read_fat()
   }
 
   // Copy a valid fat into global variable for later use
-  if (!fat1bad) 
+  if (!fat1bad)
     _fat.swap(fat1);
   else if (!fat2bad)
     _fat.swap(fat2);
@@ -795,7 +792,7 @@ tfdisk::gen_filesegments(tfinode_ptr inode)
   uint32_t clusters = uint32_t(_size / (off_t) _cluster_size);
 
 //  DEBUGMSG("%d segments, start %d, count %d", inode->seg.size(), cluster, clusters);
-  
+
   for (j = 0; j < inode->entry.count_of_clusters && cluster < clusters; ++j) {
     inode->seg[j] =
         tffilesegment((off_t) j * (off_t) _cluster_size, _cluster_size,
@@ -813,8 +810,8 @@ tfdisk::gen_filesegments(tfinode_ptr inode)
   }
   // merge adjacent clusters (will reduce number of file operations)
 
-  int maxclusters = (2u << 30) / _cluster_size - 1;
-  
+  unsigned maxclusters = (2u << 30) / _cluster_size - 1;
+
 //  DEBUGMSG("maxclusters %d", maxclusters);
   for (j = 0; j < inode->entry.count_of_clusters - 1; ++j) {
     uint32_t n = 0;
