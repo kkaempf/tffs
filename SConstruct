@@ -5,11 +5,11 @@ SConsignFile('.sconsign')
 
 ###### COMMAND LINE OPTIONS
 
-opts=Options()
+opts=Variables()
 
-opt=opts.Add(PathOption('PREFIX', 'Directory to install under', '/usr/local'))
-opt=opts.Add(PathOption('SBINDIR', 'Directory to install under', os.path.join('$PREFIX','sbin')))
-opt=opts.Add(PathOption('MANPATH', 'Directory to install under', os.path.join('$PREFIX','man')))
+opt=opts.Add(PathVariable('PREFIX', 'Directory to install under', '/usr'))
+opt=opts.Add(PathVariable('SBINDIR', 'Directory to install under', os.path.join('$PREFIX','sbin')))
+opt=opts.Add(PathVariable('MANPATH', 'Directory to install under', os.path.join('$PREFIX','share', 'man')))
 
 ### DEBUG MODE
 
@@ -46,12 +46,12 @@ conf=Configure(env)
 if (not env.GetOption('clean')):
   if (conf.TryAction('pkg-config --exists fuse')[0]):
     conf.env.ParseConfig('pkg-config --cflags --libs fuse')
-    print "Checking for libfuse... found"
+    print("Checking for libfuse... found")
   elif (conf.CheckLibWithHeader('fuse', 'fuse/fuse.h', 'C')):
     conf.env.Append(LIBS=['fuse'])
-    print "Checking for libfuse... found"
+    print("Checking for libfuse... found")
   else:
-    print "Checking for libfuse... not found"
+    print("Checking for libfuse... not found")
     sys.stderr.write("fatal: libfuse not found\n")
     sys.exit(1)
   
