@@ -39,17 +39,17 @@ typedef uint32_t cluster_t;
 /*** T*pfield data types ***/
 
 struct tf_superblock_t {
-	uint32_t	magic;
+	uint32_t	magic __attribute__((packed));
 	char	signature[28]; /* "TOPFIELD PVR HDD" ==> TF4000,  
 	                          "TOPFIELD TF5000PVR HDD" ==> TF5000 */
-	uint16_t	version; /* 0x0100 = TF4000, 0x0101 = TF5000 */
-	uint16_t	cluster_size; /* 2048: TF4000, 2068: TF5000 */
-	uint32_t	x;
-	uint32_t	first_empty;
-	uint32_t	empty_in_root;
-	uint32_t	fat_crc32;
+	uint16_t	version __attribute__((packed)); /* 0x0100 = TF4000, 0x0101 = TF5000 */
+	uint16_t	cluster_size __attribute__((packed)); /* 2048: TF4000, 2068: TF5000 */
+	uint32_t	x __attribute__((packed));
+	uint32_t	first_empty __attribute__((packed));
+	uint32_t	empty_in_root __attribute__((packed));
+	uint32_t	fat_crc32 __attribute__((packed));
 	uint8_t	filler[512-52];
-} __attribute__((packed));
+};
 
 typedef	char	tsdbname[512];
 
