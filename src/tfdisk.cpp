@@ -349,7 +349,6 @@ tfdisk::inode4path(const char *path, int *err)
   if (path[1] == 0) { // root dir
     if (!inode) { // first call, gen root inode
       tfinode_ptr root(new struct tfinode);
-      memset(root, 0, sizeof (struct tfinode));
       inode = root;
       DEBUGMSG("Root inode");
       inode->first = 0;
@@ -646,7 +645,6 @@ tfdisk::gen_inodes(tfinode_ptr dir)
     }
 
     tfinode_ptr inode(new tfinode);
-    memset(inode, 0, sizeof (struct tfinode));
     inode->first = 0;
     inode->count = -1;
     _inodes.push_back(inode);
